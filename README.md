@@ -1,46 +1,133 @@
-# Getting Started with Create React App
+# How to use TypeScript with React 18 ?
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## **Creating a React app with TypeScript**
 
-## Available Scripts
+Let’s create ourselves a vanilla React TypeScript app with [Create React App](https://blog.logrocket.com/getting-started-with-create-react-app-d93147444a27/):
 
-In the project directory, you can run:
+```bash
+yarn create react-app my-app --template typescript
+```
 
-### `yarn start`
+Now let’s upgrade the version of React to `@next`:
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+```bash
+yarn add react@next react-dom@next
+```
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+This will leave you with entries in the `package.json` that use React 18. It will likely look something like this:
 
-### `yarn test`
+```json
+{
+    "dependencies": {
+            "react": "^18.0.0",
+            "react-dom": "^18.0.0",
+        }
+}
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+If we run `yarn start`, we’ll find ourselves running a React 18 app
 
-### `yarn build`
+## **Using the new APIs**
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+So let’s try using the [ReactDOM.createRoot](https://github.com/reactwg/react-18/discussions/5) API. It’s this API that opts our application in to using React 18’s new features. We’ll open up `index.tsx` and make this change:
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```javascript
+-ReactDOM.render(
+-  <React.StrictMode>
+-    <App />
+-  </React.StrictMode>,
+-  document.getElementById('root')
+-);
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
++const root = ReactDOM.createRoot(document.getElementById('root'));
++
++root.render(
++  <React.StrictMode>
++    <App />
++  </React.StrictMode>
++);
+```
 
-### `yarn eject`
+If we were running JavaScript alone, this would work. Because we’re using TypeScript as well, however, we’re now confronted with an error:
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+{% hint style="info" %}
+_Property 'createRoot' does not exist on type 'typeof import("/code/my-app/node\_modules/@types/react-dom/index")'. TS2339_
+{% endhint %}
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+This is the TypeScript compiler complaining that it doesn’t know anything about `ReactDOM.createRoot`. This is because the type definitions that are currently in place in our application don’t have that API defined.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+Let’s upgrade our type definitions:
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+```bash
+yarn add @types/react @types/react-dom
+```
 
-## Learn More
+We might reasonably hope that everything should work now — alas, it does not. The same error is presenting. TypeScript is not happy.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## **Telling TypeScript about the new APIs**
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+If we take a look at the [PR that added support for the APIs](https://github.com/DefinitelyTyped/DefinitelyTyped/pull/53685), we’ll find some tips. If you look at one for [next.d.ts](https://github.com/DefinitelyTyped/DefinitelyTyped/blob/a07e9cfb005682fb6be0a2e85113eac131c3006f/types/react/next.d.ts), you’ll find this info, courtesy of [Sebastian Silbermann](https://twitter.com/sebsilbermann): __&#x20;
+
+````javascript
+/**
+ * These are types for things that are present in the upcoming React 18 release.
+ *
+ * Once React 18 is released they can just be moved to the main index file.
+ *
+ * To load the types declared here in an actual project, there are three ways. The easiest one,
+ * if your `tsconfig.json` already has a `"types"` array in the `"compilerOptions"` section,
+ * is to add `"react/next"` to the `"types"` array.
+ *
+ * Alternatively, a specific import syntax can to be used from a typescript file.
+ * This module does not exist in reality, which is why the {} is important:
+ *
+ * ```ts
+ * import {} from 'react/next'
+ * ```
+ *
+ * It is also possible to include it through a triple-slash reference:
+ *
+ * ```ts
+ * /// <reference types="react/next" />
+ * ```
+ *
+ * Either the import or the reference only needs to appear once, anywhere in the project.
+ */
+````
+
+et’s try the first item on the list. We’ll edit our `tsconfig.json` and add a new entry to the `"compilerOptions"` section:
+
+```json
+"types": ["react/next", "react-dom/next"]
+```
+
+If we restart our build with `yarn start`, we’re now presented with a different error:
+
+{% hint style="info" %}
+Argument of type 'HTMLElement | null' is not assignable to parameter of type 'Element | Document | DocumentFragment | Comment'.\_
+{% endhint %}
+
+{% hint style="info" %}
+Type 'null' is not assignable to type 'Element | Document | DocumentFragment | Comment'. TS2345\_
+{% endhint %}
+
+Now this actually has nothing to do with the issues with our new React type definitions. They are fine. This is TypeScript saying, “It’s not guaranteed that `document.getElementById('root')` returns something that is not `null`. Since we’re in `strictNullChecks` mode, you need to be sure `root` is not null.”
+
+We’ll deal with that by testing whether we do have an element in play before invoking `ReactDOM.createRoot`:
+
+```javascript
+import {createRoot} from 'react-dom/client';
+
+const rootElement = document.getElementById('root');
+if (!rootElement) throw new Error('Failed to find the root element');
+
+const root = createRoot(rootElement);
+
+root.render(
+    <React.StrictMode>
+     <App />
+    </React.StrictMode>
+);
+```
+
+Good luck!
