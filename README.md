@@ -1,2 +1,3 @@
-# Page 1
+# Document
 
+Welcome to my github
