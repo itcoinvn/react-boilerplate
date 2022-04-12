@@ -2,7 +2,7 @@
 
 ## **Creating a React app with TypeScript**
 
-Let’s create ourselves a vanilla React TypeScript app with [Create React App](https://blog.logrocket.com/getting-started-with-create-react-app-d93147444a27/):
+Let’s create ourselves a vanilla React TypeScript app with Create React App:
 
 ```bash
 yarn create react-app my-app --template typescript
