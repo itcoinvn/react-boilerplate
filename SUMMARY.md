@@ -1,3 +1,3 @@
 # Table of contents
 
-* [Document](README.md)
+* [How to use TypeScript with React 18 ?](README.md)
